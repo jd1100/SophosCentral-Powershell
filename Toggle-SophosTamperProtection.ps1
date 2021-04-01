@@ -118,7 +118,7 @@ function Get-SophosEndpoints {
 
     param (
         
-        [Parameter(Position=0)]
+        [Parameter(Mandatory=$false)]
         $sophosApiResponse
         ,
         [Parameter(Mandatory=$false)]
@@ -126,10 +126,7 @@ function Get-SophosEndpoints {
         $export
     
     )
-
-    if(!($sophosApiResponse)) {
-        $sophosApiResponse = Authenticate-SophosApi
-    }
+    $sophosApiResponse = Authenticate-SophosApi
     
     #Write-Host "token response is: $($sophosApiResponse["token_resp"].access_token)"
     #Write-Host "whoami response: $($sophosApiResponse["whoami_resp"].id)"
@@ -140,10 +137,11 @@ function Get-SophosEndpoints {
     $sophosEndpoints = @()
     $sophosEndpoints_noDupes = @()
 
+
     Write-Host "grabbing updated list of endpoints from sophos api..."
     Do {
     
-        Write-Host $endpoint_key
+        #Write-Host $endpoint_key
     
         $endpoints_resp = Invoke-RestMethod -Method Get -Headers @{Authorization="Bearer $($sophosApiResponse["token_resp"].access_token)"; "X-Tenant-ID"=$sophosApiResponse["whoami_resp"].id} ($($sophosApiResponse["dataRegionApiUri"])+"/endpoint/v1/endpoints?pageSize=500&pageTotal=true&pageFromKey=$($endpoint_key)")
             
@@ -187,7 +185,12 @@ function Get-SophosEndpoints {
 
     }
 
-    $sophosEndpoints_noDupes = $sophosEndpoints_noDupes | sort "hostname"
+    if ($export) {
+        $sophosEndpoints_noDupes = $sophosEndpoints_noDupes | Export-Csv -Path .\endpoints.csv -NoTypeInformation -Encoding UTF8
+    } else {
+        $sophosEndpoints_noDupes = $sophosEndpoints_noDupes | sort "hostname"
+    }
+
 }
 
 ### function ###
@@ -218,12 +221,12 @@ function Get-SophosEndpointId {
 
 
 function Authenticate-SophosApi {
-    
 
+    $apiCredentials = Get-SophosApiCredentials
 
-    $apiCreds = Get-SophosApiCredentials
-    $client_id = $apiCreds.client_id
-    $client_secret = $apiCreds.client_secret
+    Write-Host $apiCredentials
+    $client_id = $apiCredentials.client_id
+    $client_secret = $apiCredentials.client_secret
     $sophosApiResponse = @{}
 
     Write-Host "Authenticating with Sophos API...."
@@ -304,12 +307,11 @@ function Import-SophosEndpointHost {
 
 function Get-SophosApiCredentials {
     try {
-        $apiCreds = Read-Host -Prompt "Enter path to sophos api credentials file (\path\to\filename.json)"
+        $apiCreds = Read-Host "Enter path to sophos api credentials file (\path\to\filename.json)"
         $apiCreds = Get-Content $apiCreds | ConvertFrom-Json
         return $apiCreds
     } catch {
-        Write-Error "[ERROR] file 'sophos_api.json' not found"
-        return
+        Write-Error "[ERROR] file not found"
     }
     
 }
