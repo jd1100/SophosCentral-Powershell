@@ -188,7 +188,6 @@ function Get-SophosEndpoints {
     }
 
     $sophosEndpoints_noDupes = $sophosEndpoints_noDupes | sort "hostname"
-    $sophosEndpoints_noDupes | Out-Null
 }
 
 ### function ###
