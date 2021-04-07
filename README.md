@@ -1,8 +1,7 @@
 # SophosCentral-Powershell
----
 SophosCentral-Powershell is a powershell module with cmdlets for interacting with the [Sophos Central api](https://developer.sophos.com/intro)
-## cmdlets
 ---
+## cmdlets
 ### Toggle-TamperProtection
 allows the user to enable/disable tamper protection for a single endpoint or a list of endpoints
 #### flags (in any order)
