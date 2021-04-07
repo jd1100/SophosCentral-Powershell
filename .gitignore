@@ -1,0 +1,2 @@
+# ignore any json file (used for sophos api credentials)
+*.json
