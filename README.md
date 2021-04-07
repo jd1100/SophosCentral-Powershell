@@ -1,7 +1,7 @@
 # SophosCentral-Powershell
 SophosCentral-Powershell is a custom powershell module with cmdlets for interacting with the [Sophos Central api](https://developer.sophos.com/intro). This project was created out of necessity for performing batch operations against the sophos central console. Contributions are welcome and encouraged :)
 ## Installation
-
+``git.exe clone https://github.com/jd1100/SophosCentral-Powershell.git; Import-Module .\SophosCentral-Powershell\SophosCentral-Powershell.ps1``
 ## Notes
 > This module assumes that there is only a single tenant in the sophos environment. There is currently no support for multiple tenants.
 ## cmdlets
@@ -15,6 +15,7 @@ allows the user to enable/disable tamper protection for a single endpoint, a lis
 - ``-enable`` -> enable tamper protection
 - ``-disable`` -> disable tamper protection
 ### Get-SophosEndpoints
+Enumerates all endpoints from the sophos central console. Additionally this cmdlet attempts to remove any duplicate endpoints.
 #### usage
 - ``-sophosApiResponse`` -> specifies a hashtable object that contains all the information needed for making api requests
   - > Note: even if not supplied, the cmdlet will attempt to authenticate on its own
