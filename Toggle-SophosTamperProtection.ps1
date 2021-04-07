@@ -224,7 +224,6 @@ function Authenticate-SophosApi {
 
     $apiCredentials = Get-SophosApiCredentials
 
-    Write-Host $apiCredentials
     $client_id = $apiCredentials.client_id
     $client_secret = $apiCredentials.client_secret
     $sophosApiResponse = @{}

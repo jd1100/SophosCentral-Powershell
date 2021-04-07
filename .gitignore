@@ -1,2 +1,6 @@
 # ignore any json file (used for sophos api credentials)
 *.json
+
+# ignore any spreadsheet/excel files (list of hosts)
+*.csv
+*.xlsx
