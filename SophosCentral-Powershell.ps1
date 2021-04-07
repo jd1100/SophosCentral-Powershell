@@ -46,8 +46,8 @@ function Toggle-TamperProtection {
         if($promptUser -eq 'y') {
             $endpoints = Get-SophosEndpoints -sophosApiResponse $sophosApiResponse
 
-            $endpoints | ForEach-Object {
-                $endpointId = $_.id
+            foreach ($endpoint in $endpoints) {
+                $endpointId = $endpoint.id
                     
                 # build the uri for removing tamper protection from the specified $ComputerName (requires the $endpointId) 
                 $uri = ($sophosApiResponse['dataRegionApiUri'] + "/endpoint/v1/endpoints/" + $endpointId + "/tamper-protection")
@@ -68,15 +68,23 @@ function Toggle-TamperProtection {
         $endpointsCsv = Import-SophosEndpointHostList -csv $csv
 
 
-        $endpointsCsv | ForEach-Object {
-            $endpointId = $_.id
+        foreach ($endpoint in $endpointsCsv) {
+            Write-Host $endpoint.hosts
+
+            $endpointId = Get-SophosEndpointId -computerName $endpoint.hosts -sophosApiResponse $sophosApiResponse
                     
             # build the uri for removing tamper protection from the specified $ComputerName (requires the $endpointId) 
             $uri = ($sophosApiResponse['dataRegionApiUri'] + "/endpoint/v1/endpoints/" + $endpointId + "/tamper-protection")
-    
-            # api request to remove tamper protection 
-            $tamperProtectionToggleResponse = Invoke-RestMethod -Method Post -Headers @{Authorization="Bearer $($sophosApiResponse['token_resp'].access_token)"; "X-Tenant-ID"=$sophosApiResponse['whoami_resp'].id} -ContentType "application/json" -Body $json -Uri $uri
+            
+            try {
+                # api request to remove tamper protection 
+                $tamperProtectionToggleResponse = Invoke-RestMethod -Method Post -Headers @{Authorization="Bearer $($sophosApiResponse['token_resp'].access_token)"; "X-Tenant-ID"=$sophosApiResponse['whoami_resp'].id} -ContentType "application/json" -Body $json -Uri $uri
 
+            } 
+            catch {
+                Write-Warning "Failed to toggle tamper protection for device: $($endpoint.hosts) with id: $($endpointId)"
+                Write-Warning $Error[0]  
+            }
 
         }
     }
@@ -99,7 +107,7 @@ function Toggle-TamperProtection {
             $tamperProtectionToggleResponse = Invoke-RestMethod -Method Post -Headers @{Authorization="Bearer $($sophosApiResponse['token_resp'].access_token)"; "X-Tenant-ID"=$sophosApiResponse['whoami_resp'].id} -Uri $uri -ContentType "application/json" -Body $json
         }
         catch {
-            Write-Warning "Failed to disable tamper protection for device: $($computerName) with id: $($endpointId)"
+            Write-Warning "Failed to toggle tamper protection for device: $($computerName) with id: $($endpointId)"
             Write-Warning $Error[0]
 
         }
@@ -126,7 +134,10 @@ function Get-SophosEndpoints {
         $export
     
     )
-    $sophosApiResponse = Authenticate-SophosApi
+    
+    if (!($sophosApiResponse)) {
+        $sophosApiResponse = Authenticate-SophosApi
+    }
     
     #Write-Host "token response is: $($sophosApiResponse["token_resp"].access_token)"
     #Write-Host "whoami response: $($sophosApiResponse["whoami_resp"].id)"
@@ -191,6 +202,7 @@ function Get-SophosEndpoints {
         $sophosEndpoints_noDupes = $sophosEndpoints_noDupes | sort "hostname"
     }
 
+    return $sophosEndpoints_noDupes
 }
 
 ### function ###
@@ -201,14 +213,17 @@ function Get-SophosEndpointId {
         [Parameter(Mandatory=$true,Position=0)]
         [String] 
         $computerName
+        ,
+        [Parameter(Mandatory=$false)]
+        $sophosApiResponse
 
     )
     
-    $endpoints = Get-SophosEndpoints
+    $endpoints = Get-SophosEndpoints $sophosApiResponse
 
     # loop through all devices on sophos to find matching id for current device
     ForEach ($endpoint in $endpoints) {
-        #Write-Host $_
+        #Write-Host $endpoint
         
         if($computerName -eq $endpoint.hostname) {
             return $endpoint.id
