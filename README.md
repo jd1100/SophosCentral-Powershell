@@ -16,7 +16,7 @@ allows the user to enable/disable tamper protection for a single endpoint, a lis
 - ``-disable`` -> disable tamper protection
 ### Get-SophosEndpoints
 #### usage
-- ``-sophosApiResponse`` -> specifies a hash table object that contains all the information needed for making api requests
+- ``-sophosApiResponse`` -> specifies a hashtable object that contains all the information needed for making api requests
   - > Note: even if not supplied, the cmdlet will attempt to authenticate on its own
 - ``-export`` -> exports the endpoints to a csv file called "endpoints.csv"
 ### Get-SophosEndpointId
@@ -25,9 +25,7 @@ allows the user to enable/disable tamper protection for a single endpoint, a lis
 - ``-sophosApiResponse`` -> specifies a hash table object that contains all the information needed for making api requests
   - > Note: even if not supplied, the cmdlet will attempt to authenticate on its own
 ### Authenticate-SophosApi
-performs the initial authentication with the sophos central api using oAuth2
-#### usage
-- ``-
+performs the initial authentication with the sophos central api using oAuth2. Returns a hashtable with metadata about the respective sophos central environment
 ## To-Do
 - enable support for multiple tenants
 - Implement function/cmdlet for checking tamper protection status of a single host or a list of hosts
