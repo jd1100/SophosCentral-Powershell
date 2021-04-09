@@ -17,13 +17,13 @@ allows the user to enable/disable tamper protection for a single endpoint, a lis
 ### Get-SophosEndpoints
 Enumerates all endpoints from the sophos central console. Additionally this cmdlet attempts to remove any duplicate endpoints.
 #### usage
-- ``-sophosApiResponse`` -> specifies a hashtable object that contains all the information needed for making api requests
+- ``-sophosApiResponse [$apiResponse]`` -> specifies a hashtable object that contains all the information needed for making api requests
   - > Note: even if not supplied, the cmdlet will attempt to authenticate on its own
-- ``-export`` -> exports the endpoints to a csv file called "endpoints.csv"
+- ``-export`` -> exports the endpoints to a csv file called "endpoints.csv" in the current working directory
 ### Get-SophosEndpointId
 #### usage
-- ``-computerName`` -> specify a single host to find the associated sophos central id
-- ``-sophosApiResponse`` -> specifies a hash table object that contains all the information needed for making api requests
+- ``-computerName [hostname]`` -> specify a single host to find the associated sophos central id
+- ``-sophosApiResponse [$apiResponse]`` -> specifies a hash table object that contains all the information needed for making api requests
   - > Note: even if not supplied, the cmdlet will attempt to authenticate on its own
 ### Authenticate-SophosApi
 performs the initial authentication with the sophos central api using oAuth2. Returns a hashtable with metadata about the respective sophos central environment
