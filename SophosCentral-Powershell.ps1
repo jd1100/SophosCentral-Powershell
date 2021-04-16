@@ -66,12 +66,12 @@ function Toggle-TamperProtection {
     }
     if($csv) {
         $endpointsCsv = Import-SophosEndpointHostList -csv $csv
-
+        $sophosEndpoints = Get-SophosEndpoints -sophosApiResponse $sophosApiResponse
 
         foreach ($endpoint in $endpointsCsv) {
             Write-Host $endpoint.hosts
 
-            $endpointId = Get-SophosEndpointId -computerName $endpoint.hosts -sophosApiResponse $sophosApiResponse
+            $endpointId = Get-SophosEndpointId -computerName $endpoint.hosts -sophosApiResponse $sophosApiResponse -sophosEndpoints $sophosEndpoints 
                     
             # build the uri for removing tamper protection from the specified $ComputerName (requires the $endpointId) 
             $uri = ($sophosApiResponse['dataRegionApiUri'] + "/endpoint/v1/endpoints/" + $endpointId + "/tamper-protection")
@@ -216,13 +216,18 @@ function Get-SophosEndpointId {
         ,
         [Parameter(Mandatory=$false)]
         $sophosApiResponse
+        ,
+        [Parameter(Mandatory=$false)]
+        $sophosEndpoints
 
     )
     
-    $endpoints = Get-SophosEndpoints $sophosApiResponse
+    if (!($sophosEndpoints)) {
+        $sophosEndpoints = Get-SophosEndpoints
+    }
 
     # loop through all devices on sophos to find matching id for current device
-    ForEach ($endpoint in $endpoints) {
+    ForEach ($endpoint in $sophosEndpoints) {
         #Write-Host $endpoint
         
         if($computerName -eq $endpoint.hostname) {
