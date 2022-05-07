@@ -41,7 +41,7 @@ function Toggle-TamperProtection {
         return
     }
 
-    if($all) {
+    if ($all) {
         $promptUser = Read-Host "$($promptUserMessage) + tamper protection from all devices. Press 'y' to continue."
         if($promptUser -eq 'y') {
             $endpoints = Get-SophosEndpoints -sophosApiResponse $sophosApiResponse
@@ -51,10 +51,18 @@ function Toggle-TamperProtection {
                     
                 # build the uri for removing tamper protection from the specified $ComputerName (requires the $endpointId) 
                 $uri = ($sophosApiResponse['dataRegionApiUri'] + "/endpoint/v1/endpoints/" + $endpointId + "/tamper-protection")
-    
-                # api request to remove tamper protection 
+     
+                try {
+                # api request to toggle tamper protection 
                 $tamperProtectionToggleResponse = Invoke-RestMethod -Method Post -Headers @{Authorization="Bearer $($sophosApiResponse['token_resp'].access_token)"; "X-Tenant-ID"=$sophosApiResponse['whoami_resp'].id} -ContentType "application/json" -Body $json -Uri $uri
+                Write-Host "$($promptUserMessage) tamper protection on device: $($endpoint.hosts)"
+                Start-Sleep -Milliseconds 250
 
+                } 
+                catch {
+                    Write-Warning "Failed to toggle tamper protection for device: $($endpoint.hosts) with id: $($endpointId)"
+                    Write-Warning $Error[0]  
+                }
 
             }
 
@@ -64,21 +72,23 @@ function Toggle-TamperProtection {
             return
         }
     }
-    if($csv) {
+    if ($csv) {
         $endpointsCsv = Import-SophosEndpointHostList -csv $csv
-
+        $sophosEndpoints = Get-SophosEndpoints -sophosApiResponse $sophosApiResponse
 
         foreach ($endpoint in $endpointsCsv) {
-            Write-Host $endpoint.hosts
+            #Write-Host $endpoint.hosts
 
-            $endpointId = Get-SophosEndpointId -computerName $endpoint.hosts -sophosApiResponse $sophosApiResponse
+            $endpointId = Get-SophosEndpointId -computerName $endpoint.hosts -sophosApiResponse $sophosApiResponse -sophosEndpoints $sophosEndpoints 
                     
             # build the uri for removing tamper protection from the specified $ComputerName (requires the $endpointId) 
             $uri = ($sophosApiResponse['dataRegionApiUri'] + "/endpoint/v1/endpoints/" + $endpointId + "/tamper-protection")
             
             try {
-                # api request to remove tamper protection 
+                # api request to toggle tamper protection 
                 $tamperProtectionToggleResponse = Invoke-RestMethod -Method Post -Headers @{Authorization="Bearer $($sophosApiResponse['token_resp'].access_token)"; "X-Tenant-ID"=$sophosApiResponse['whoami_resp'].id} -ContentType "application/json" -Body $json -Uri $uri
+                Write-Host "$($promptUserMessage) tamper protection on device: $($endpoint.hosts)"
+                Start-Sleep -Milliseconds 250
 
             } 
             catch {
@@ -113,7 +123,7 @@ function Toggle-TamperProtection {
         }
         
 
-        Write-Host "$($promptUserMessage) tamper protection on device: $($ComputerName)"
+        Write-Host "$($promptUserMessage) tamper protection on device: $($computerName)"
     }
     else {
         Write-Host "no endpoints specified"
@@ -216,13 +226,18 @@ function Get-SophosEndpointId {
         ,
         [Parameter(Mandatory=$false)]
         $sophosApiResponse
+        ,
+        [Parameter(Mandatory=$false)]
+        $sophosEndpoints
 
     )
     
-    $endpoints = Get-SophosEndpoints $sophosApiResponse
+    if (!($sophosEndpoints)) {
+        $sophosEndpoints = Get-SophosEndpoints
+    }
 
     # loop through all devices on sophos to find matching id for current device
-    ForEach ($endpoint in $endpoints) {
+    ForEach ($endpoint in $sophosEndpoints) {
         #Write-Host $endpoint
         
         if($computerName -eq $endpoint.hostname) {
@@ -237,7 +252,12 @@ function Get-SophosEndpointId {
 
 function Authenticate-SophosApi {
 
-    $apiCredentials = Get-SophosApiCredentials
+    try {
+        $apiCredentials = Read-Host "Enter path to sophos api credentials file (\path\to\filename.json)"
+        $apiCredentials = Get-Content $apiCredentials | ConvertFrom-Json
+    } catch {
+        Write-Error "[ERROR] api credential file not found or is formatted improperly"
+    }
 
     $client_id = $apiCredentials.client_id
     $client_secret = $apiCredentials.client_secret
@@ -248,7 +268,7 @@ function Authenticate-SophosApi {
     # authenticate with sophos (returns time/scope limited java web token)
     $token_resp = Invoke-RestMethod -Method Post -ContentType "application/x-www-form-urlencoded" -Body "grant_type=client_credentials&client_id=$client_id&client_secret=$client_secret&scope=token" -Uri https://id.sophos.com/api/v2/oauth2/token
 
-    # Get Tenant ID (only 1 for UNF)
+    
     $whoami_resp = Invoke-RestMethod -Method Get -Headers @{Authorization="Bearer $($token_resp.access_token)"} https://api.central.sophos.com/whoami/v1
 
     $dataRegionApiUri = $whoami_resp.apiHosts.dataRegion
@@ -305,59 +325,82 @@ function Import-SophosEndpointHostList {
 }
 
 
-function Import-SophosEndpointHost {
-    Param([string]$computerName)
-    if ($computerName) {
-        
-        return $computerName
-
-    }
-
-    else {
-        Write-Error "no host provided" 
-        return
-    }
-}
-
-function Get-SophosApiCredentials {
-    try {
-        $apiCreds = Read-Host "Enter path to sophos api credentials file (\path\to\filename.json)"
-        $apiCreds = Get-Content $apiCreds | ConvertFrom-Json
-        return $apiCreds
-    } catch {
-        Write-Error "[ERROR] file not found"
-    }
-    
-}
-
-
 #Remove-Item .\endpoints.csv
 #Get-SophosEndpoints $sophosApiResponse
 
 #$updatedEndpointsList = Import-Csv -Path .\endpoints.csv -Encoding UTF8
 
-function Check-TamperProtectionStatus {}
+function Check-TamperProtectionStatus {
+    Param (
+        [Parameter(Mandatory=$false)]
+        [string]
+        $csv
+        ,
+        [Parameter(Mandatory=$false,ValueFromPipeline=$true)]
+        [String] 
+        $computerName
+        ,
+        [Parameter(Mandatory=$false)]
+        $sophosApiResponse
+        ,
+        [Parameter(Mandatory=$false)]
+        $sophosEndpoints
+    )
 
-#Write-Host "Checking Tamper Protection Status"
-ForEach ($hostname in $hostListCsv) {
+    $sophosApiResponse = Authenticate-SophosApi
+    $sophosEndpoints = Get-SophosEndpoints -sophosApiResponse $sophosApiResponse
+
+    if($csv) {
+
+        $hostListCsv = Import-SophosEndpointHostList -csv $csv
+
+        ForEach ($hostname in $hostListCsv) {
     
-    ForEach ($endpoint in $updatedEndpointsList) {
+            ForEach ($endpoint in $sophosEndpoints) {
         
-        $tamperProtectionEnabled = [bool]::Parse($endpoint.tamperProtectionEnabled)
+                $tamperProtectionEnabled = [bool]::Parse($endpoint.tamperProtectionEnabled)
 
-        #Write-Host $endpoint.hostname
-        #Write-Host $hostname.hosts
+                #Write-Host $endpoint.hostname
+                #Write-Host $hostname.hosts
     
-        if($endpoint.hostname -eq $hostname.hosts -And $tamperProtectionEnabled -eq $false) {
+                if($endpoint.hostname -eq $hostname.hosts -And $tamperProtectionEnabled -eq $false) {
             
-            Write-Host "Tamper Protection is DISABLED for $($hostname.hosts)"
+                    Write-Host "Tamper Protection is DISABLED for $($hostname.hosts)"
+
+                }
+                elseif ($endpoint.hostname -eq $hostname.hosts -And $tamperProtectionEnabled -eq $true) {
+        
+                    Write-Host "Tamper Protection is ENABLED for $($hostname.hosts)"
+                }
+    
+            }
 
         }
-        elseif ($endpoint.hostname -eq $hostname.hosts -And $tamperProtectionEnabled -eq $true) {
-        
-            Write-Host "Tamper Protection is ENABLED for $($hostname.hosts)"
-        }
-    
     }
 
+    elseif($computerName) {
+
+        ForEach ($endpoint in $sophosEndpoints) {
+        
+            $tamperProtectionEnabled = [bool]::Parse($endpoint.tamperProtectionEnabled)
+
+            #Write-Host $endpoint.hostname
+            #Write-Host $hostname.hosts
+    
+            if($endpoint.hostname -eq $computerName -And $tamperProtectionEnabled -eq $false) {
+            
+                Write-Host "Tamper Protection is DISABLED for $($computerName)"
+
+            }
+            elseif ($endpoint.hostname -eq $computerName -And $tamperProtectionEnabled -eq $true) {
+        
+                Write-Host "Tamper Protection is ENABLED for $($computerName)"
+            }
+    
+        }
+
+    }
+    else {
+        Write-Error "missing computerName or csv"
+    }
 }
